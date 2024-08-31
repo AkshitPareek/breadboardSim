@@ -1,11 +1,12 @@
 import React from 'react';
+import './ComponentProperties.css';
 
-const ComponentProperties = ({ component, onUpdate }) => {
+const ComponentProperties = ({ component, onUpdate, onClose }) => {
   if (!component) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    onUpdate(component.id, { ...component.properties, [name]: parseFloat(value) });
+    onUpdate(component.id, { [name]: value });
   };
 
   const renderProperties = () => {
@@ -18,7 +19,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="resistance"
-                value={component.properties.resistance}
+                value={component.properties.resistance || ''}
                 onChange={handleChange}
               />
             </label>
@@ -27,7 +28,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="powerRating"
-                value={component.properties.powerRating || 0.25}
+                value={component.properties.powerRating || ''}
                 onChange={handleChange}
               />
             </label>
@@ -36,7 +37,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="tolerance"
-                value={component.properties.tolerance || 5}
+                value={component.properties.tolerance || ''}
                 onChange={handleChange}
               />
             </label>
@@ -50,7 +51,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="capacitance"
-                value={component.properties.capacitance}
+                value={component.properties.capacitance || ''}
                 onChange={handleChange}
               />
             </label>
@@ -59,19 +60,20 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="voltageRating"
-                value={component.properties.voltageRating || 50}
+                value={component.properties.voltageRating || ''}
                 onChange={handleChange}
               />
             </label>
             <label>
               Type:
               <select
-                name="type"
-                value={component.properties.type || 'ceramic'}
+                name="capacitorType"
+                value={component.properties.capacitorType || ''}
                 onChange={handleChange}
               >
-                <option value="ceramic">Ceramic</option>
+                <option value="">Select Type</option>
                 <option value="electrolytic">Electrolytic</option>
+                <option value="ceramic">Ceramic</option>
                 <option value="film">Film</option>
               </select>
             </label>
@@ -81,11 +83,11 @@ const ComponentProperties = ({ component, onUpdate }) => {
         return (
           <>
             <label>
-              Inductance (mH):
+              Inductance (H):
               <input
                 type="number"
                 name="inductance"
-                value={component.properties.inductance}
+                value={component.properties.inductance || ''}
                 onChange={handleChange}
               />
             </label>
@@ -94,7 +96,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="currentRating"
-                value={component.properties.currentRating || 1}
+                value={component.properties.currentRating || ''}
                 onChange={handleChange}
               />
             </label>
@@ -109,7 +111,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="forwardVoltage"
-                value={component.properties.forwardVoltage}
+                value={component.properties.forwardVoltage || ''}
                 onChange={handleChange}
               />
             </label>
@@ -118,7 +120,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="maxCurrent"
-                value={component.properties.maxCurrent || 20}
+                value={component.properties.maxCurrent || ''}
                 onChange={handleChange}
               />
             </label>
@@ -127,9 +129,10 @@ const ComponentProperties = ({ component, onUpdate }) => {
                 Color:
                 <select
                   name="color"
-                  value={component.properties.color || 'red'}
+                  value={component.properties.color || ''}
                   onChange={handleChange}
                 >
+                  <option value="">Select Color</option>
                   <option value="red">Red</option>
                   <option value="green">Green</option>
                   <option value="blue">Blue</option>
@@ -146,9 +149,10 @@ const ComponentProperties = ({ component, onUpdate }) => {
               Type:
               <select
                 name="transistorType"
-                value={component.properties.transistorType || 'npn'}
+                value={component.properties.transistorType || ''}
                 onChange={handleChange}
               >
+                <option value="">Select Type</option>
                 <option value="npn">NPN</option>
                 <option value="pnp">PNP</option>
               </select>
@@ -158,7 +162,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="gain"
-                value={component.properties.gain}
+                value={component.properties.gain || ''}
                 onChange={handleChange}
               />
             </label>
@@ -167,7 +171,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
               <input
                 type="number"
                 name="maxCollectorCurrent"
-                value={component.properties.maxCollectorCurrent || 1}
+                value={component.properties.maxCollectorCurrent || ''}
                 onChange={handleChange}
               />
             </label>
@@ -177,7 +181,7 @@ const ComponentProperties = ({ component, onUpdate }) => {
         return (
           <>
             <label>
-              Type:
+              IC Type:
               <input
                 type="text"
                 name="icType"
@@ -202,8 +206,19 @@ const ComponentProperties = ({ component, onUpdate }) => {
 
   return (
     <div className="component-properties">
+      <button className="close-button" onClick={onClose}>&times;</button>
       <h3>{component.type.charAt(0).toUpperCase() + component.type.slice(1)} Properties</h3>
       {renderProperties()}
+      <label>
+        Rotation (degrees):
+        <input
+          type="number"
+          name="rotation"
+          value={component.rotation || 0}
+          onChange={(e) => onUpdate(component.id, { rotation: parseInt(e.target.value, 10) })}
+          step="90"
+        />
+      </label>
     </div>
   );
 };

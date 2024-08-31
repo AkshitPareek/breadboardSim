@@ -87,7 +87,14 @@ const Breadboard = ({ state, setState }) => {
   };
 
   const rotateComponent = (id) => {
-    // Implementation of rotateComponent function
+    setState(prevState => ({
+      ...prevState,
+      components: prevState.components.map(comp =>
+        comp.id === id
+          ? { ...comp, rotation: ((comp.rotation || 0) + 90) % 360 }
+          : comp
+      ),
+    }));
   };
 
   const handleComponentClick = (component) => {
@@ -101,7 +108,14 @@ const Breadboard = ({ state, setState }) => {
   };
 
   const updateComponentProperties = (id, newProperties) => {
-    // Implementation of updateComponentProperties function
+    setState(prevState => ({
+      ...prevState,
+      components: prevState.components.map(comp =>
+        comp.id === id
+          ? { ...comp, properties: { ...comp.properties, ...newProperties } }
+          : comp
+      ),
+    }));
   };
 
   const renderWires = () => {
@@ -156,21 +170,21 @@ const Breadboard = ({ state, setState }) => {
               component={component}
               onMove={handleConnectionPointClick}
               activeWireStart={wireStart}
-              onRotate={rotateComponent}
+              onRotate={() => rotateComponent(component.id)}
               onClick={() => handleComponentClick(component)}
             />
           ))}
         </div>
+        {isPropertiesPanelOpen && (
+          <div className="properties-panel">
+            <ComponentProperties
+              component={selectedComponent}
+              onUpdate={updateComponentProperties}
+              onClose={closePropertiesPanel}
+            />
+          </div>
+        )}
       </div>
-      {isPropertiesPanelOpen && (
-        <div className="properties-panel">
-          <button className="close-button" onClick={closePropertiesPanel}>×</button>
-          <ComponentProperties
-            component={selectedComponent}
-            onUpdate={updateComponentProperties}
-          />
-        </div>
-      )}
     </div>
   );
 };

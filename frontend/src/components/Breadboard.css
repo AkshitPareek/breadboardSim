@@ -1,19 +1,20 @@
 .breadboard-layout {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px;
 }
 
 .breadboard-wrapper {
-  width: 800px;
-  margin: 0 auto;
+  display: flex;
+  gap: 20px;
 }
 
 .breadboard-container {
   width: 800px;
   height: 400px;
   border: 1px solid #000;
-  margin: 20px auto;
   position: relative;
   background-image: 
     linear-gradient(to right, #f0f0f0 1px, transparent 1px),
@@ -22,15 +23,8 @@
 }
 
 .properties-panel {
-  position: absolute;
+  position: sticky;
   top: 20px;
-  right: 20px;
-  width: 250px;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: white;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
 .connection-point {
