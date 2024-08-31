@@ -10,12 +10,11 @@ const COMPONENT_WIDTH = 66;
 const COMPONENT_HEIGHT = 50;
 const DOT_SIZE = 10;
 
-const Breadboard = ({ state, setState, onSave, onLoad }) => {
+const Breadboard = ({ state, setState }) => {
   const boardRef = useRef(null);
   const [wireStart, setWireStart] = useState(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isPropertiesPanelOpen, setIsPropertiesPanelOpen] = useState(false);
-  const [customConnectionPoints, setCustomConnectionPoints] = useState([]);
 
   const [, drop] = useDrop(() => ({
     accept: 'component',
@@ -120,12 +119,15 @@ const Breadboard = ({ state, setState, onSave, onLoad }) => {
   };
 
   const handleGridClick = (e) => {
-    if (e.metaKey || e.ctrlKey) {  // Support both Command (Mac) and Control (Windows)
+    if (e.metaKey || e.ctrlKey) {
       const rect = boardRef.current.getBoundingClientRect();
       const x = Math.floor((e.clientX - rect.left) / GRID_SIZE) * GRID_SIZE;
       const y = Math.floor((e.clientY - rect.top) / GRID_SIZE) * GRID_SIZE;
       
-      setCustomConnectionPoints(prev => [...prev, { x, y, id: Date.now() }]);
+      setState(prevState => ({
+        ...prevState,
+        customConnectionPoints: [...prevState.customConnectionPoints, { x, y, id: Date.now() }]
+      }));
     }
   };
 
@@ -147,7 +149,7 @@ const Breadboard = ({ state, setState, onSave, onLoad }) => {
   };
 
   const renderCustomConnectionPoints = () => {
-    return customConnectionPoints.map((point) => (
+    return state.customConnectionPoints.map((point) => (
       <div
         key={point.id}
         className={`connection-point ${wireStart && wireStart.customPointId === point.id ? 'active' : ''}`}
@@ -169,7 +171,7 @@ const Breadboard = ({ state, setState, onSave, onLoad }) => {
 
       try {
         if (connection.from.customPointId) {
-          const startPoint = customConnectionPoints.find(p => p.id === connection.from.customPointId);
+          const startPoint = state.customConnectionPoints.find(p => p.id === connection.from.customPointId);
           if (!startPoint) throw new Error('Start point not found');
           start = { x: startPoint.x + DOT_SIZE / 2, y: startPoint.y + DOT_SIZE / 2 };
         } else {
@@ -184,7 +186,7 @@ const Breadboard = ({ state, setState, onSave, onLoad }) => {
         }
 
         if (connection.to.customPointId) {
-          const endPoint = customConnectionPoints.find(p => p.id === connection.to.customPointId);
+          const endPoint = state.customConnectionPoints.find(p => p.id === connection.to.customPointId);
           if (!endPoint) throw new Error('End point not found');
           end = { x: endPoint.x + DOT_SIZE / 2, y: endPoint.y + DOT_SIZE / 2 };
         } else {
@@ -219,10 +221,12 @@ const Breadboard = ({ state, setState, onSave, onLoad }) => {
   return (
     <div className="breadboard-layout">
       <div className="breadboard-wrapper">
+        {/* Remove this section if it exists
         <div className="breadboard-controls">
-          <button onClick={onSave}>Save</button>
-          <button onClick={onLoad}>Load</button>
+          <button onClick={() => {}}>Save</button>
+          <button onClick={() => {}}>Load</button>
         </div>
+        */}
         <div 
           ref={(node) => {
             drop(node);
