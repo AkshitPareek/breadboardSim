@@ -10,7 +10,7 @@ const COMPONENT_WIDTH = 66;
 const COMPONENT_HEIGHT = 50;
 const DOT_SIZE = 10;
 
-const Breadboard = ({ state, setState }) => {
+const Breadboard = ({ state, setState, onSave, onLoad }) => {
   const boardRef = useRef(null);
   const [wireStart, setWireStart] = useState(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
@@ -167,47 +167,62 @@ const Breadboard = ({ state, setState }) => {
     return state.connections.map((connection, index) => {
       let start, end;
 
-      if (connection.from.customPointId) {
-        const startPoint = customConnectionPoints.find(p => p.id === connection.from.customPointId);
-        start = { x: startPoint.x + DOT_SIZE / 2, y: startPoint.y + DOT_SIZE / 2 };
-      } else {
-        const startComponent = state.components.find(c => c.id === connection.from.componentId);
-        const startPoint = startComponent.connectionPoints[connection.from.pointIndex];
-        start = {
-          x: startComponent.position.x * GRID_SIZE + startPoint.x + DOT_SIZE,
-          y: startComponent.position.y * GRID_SIZE + startPoint.y,
-        };
-      }
+      try {
+        if (connection.from.customPointId) {
+          const startPoint = customConnectionPoints.find(p => p.id === connection.from.customPointId);
+          if (!startPoint) throw new Error('Start point not found');
+          start = { x: startPoint.x + DOT_SIZE / 2, y: startPoint.y + DOT_SIZE / 2 };
+        } else {
+          const startComponent = state.components.find(c => c.id === connection.from.componentId);
+          if (!startComponent) throw new Error('Start component not found');
+          const startPoint = startComponent.connectionPoints[connection.from.pointIndex];
+          if (!startPoint) throw new Error('Start connection point not found');
+          start = {
+            x: startComponent.position.x * GRID_SIZE + startPoint.x + DOT_SIZE,
+            y: startComponent.position.y * GRID_SIZE + startPoint.y,
+          };
+        }
 
-      if (connection.to.customPointId) {
-        const endPoint = customConnectionPoints.find(p => p.id === connection.to.customPointId);
-        end = { x: endPoint.x + DOT_SIZE / 2, y: endPoint.y + DOT_SIZE / 2 };
-      } else {
-        const endComponent = state.components.find(c => c.id === connection.to.componentId);
-        const endPoint = endComponent.connectionPoints[connection.to.pointIndex];
-        end = {
-          x: endComponent.position.x * GRID_SIZE + endPoint.x + DOT_SIZE,
-          y: endComponent.position.y * GRID_SIZE + endPoint.y,
-        };
-      }
+        if (connection.to.customPointId) {
+          const endPoint = customConnectionPoints.find(p => p.id === connection.to.customPointId);
+          if (!endPoint) throw new Error('End point not found');
+          end = { x: endPoint.x + DOT_SIZE / 2, y: endPoint.y + DOT_SIZE / 2 };
+        } else {
+          const endComponent = state.components.find(c => c.id === connection.to.componentId);
+          if (!endComponent) throw new Error('End component not found');
+          const endPoint = endComponent.connectionPoints[connection.to.pointIndex];
+          if (!endPoint) throw new Error('End connection point not found');
+          end = {
+            x: endComponent.position.x * GRID_SIZE + endPoint.x + DOT_SIZE,
+            y: endComponent.position.y * GRID_SIZE + endPoint.y,
+          };
+        }
 
-      return (
-        <line
-          key={index}
-          x1={start.x}
-          y1={start.y}
-          x2={end.x}
-          y2={end.y}
-          stroke="black"
-          strokeWidth="2"
-        />
-      );
-    });
+        return (
+          <line
+            key={index}
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            stroke="black"
+            strokeWidth="2"
+          />
+        );
+      } catch (error) {
+        console.error(`Error rendering wire ${index}:`, error.message);
+        return null; // Skip rendering this wire
+      }
+    }).filter(Boolean); // Remove any null entries (failed renders)
   };
 
   return (
     <div className="breadboard-layout">
       <div className="breadboard-wrapper">
+        <div className="breadboard-controls">
+          <button onClick={onSave}>Save</button>
+          <button onClick={onLoad}>Load</button>
+        </div>
         <div 
           ref={(node) => {
             drop(node);
