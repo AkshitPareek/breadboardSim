@@ -1,0 +1,26 @@
+.component-list {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.component-item {
+  margin: 0 10px;
+  cursor: move;
+  text-align: center;
+}
+
+.component-icon {
+  width: 66px;
+  height: 50px;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.component-label {
+  margin-top: 5px;
+  font-size: 12px;
+}
