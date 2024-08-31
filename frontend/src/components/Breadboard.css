@@ -32,3 +32,21 @@
   background-color: white;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
+
+.connection-point {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: red;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.connection-point:hover {
+  transform: scale(1.2);
+}
+
+.connection-point.active {
+  background-color: green;
+}
