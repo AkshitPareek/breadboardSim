@@ -15,6 +15,7 @@ const Breadboard = ({ state, setState }) => {
   const [wireStart, setWireStart] = useState(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isPropertiesPanelOpen, setIsPropertiesPanelOpen] = useState(false);
+  const [customConnectionPoints, setCustomConnectionPoints] = useState([]);
 
   const [, drop] = useDrop(() => ({
     accept: 'component',
@@ -118,24 +119,77 @@ const Breadboard = ({ state, setState }) => {
     }));
   };
 
+  const handleGridClick = (e) => {
+    if (e.metaKey || e.ctrlKey) {  // Support both Command (Mac) and Control (Windows)
+      const rect = boardRef.current.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / GRID_SIZE) * GRID_SIZE;
+      const y = Math.floor((e.clientY - rect.top) / GRID_SIZE) * GRID_SIZE;
+      
+      setCustomConnectionPoints(prev => [...prev, { x, y, id: Date.now() }]);
+    }
+  };
+
+  const handleCustomConnectionPointClick = (pointId) => {
+    if (!wireStart) {
+      setWireStart({ customPointId: pointId });
+    } else {
+      if (wireStart.customPointId !== pointId) {
+        setState(prevState => ({
+          ...prevState,
+          connections: [
+            ...prevState.connections,
+            { from: wireStart, to: { customPointId: pointId } }
+          ]
+        }));
+      }
+      setWireStart(null);
+    }
+  };
+
+  const renderCustomConnectionPoints = () => {
+    return customConnectionPoints.map((point) => (
+      <div
+        key={point.id}
+        className={`connection-point ${wireStart && wireStart.customPointId === point.id ? 'active' : ''}`}
+        style={{
+          position: 'absolute',
+          left: `${point.x}px`,
+          top: `${point.y}px`,
+          width: `${DOT_SIZE}px`,
+          height: `${DOT_SIZE}px`,
+        }}
+        onClick={() => handleCustomConnectionPointClick(point.id)}
+      />
+    ));
+  };
+
   const renderWires = () => {
     return state.connections.map((connection, index) => {
-      const startComponent = state.components.find(c => c.id === connection.from.componentId);
-      const endComponent = state.components.find(c => c.id === connection.to.componentId);
-      
-      if (!startComponent || !endComponent) return null;
+      let start, end;
 
-      const startPoint = startComponent.connectionPoints[connection.from.pointIndex];
-      const endPoint = endComponent.connectionPoints[connection.to.pointIndex];
+      if (connection.from.customPointId) {
+        const startPoint = customConnectionPoints.find(p => p.id === connection.from.customPointId);
+        start = { x: startPoint.x + DOT_SIZE / 2, y: startPoint.y + DOT_SIZE / 2 };
+      } else {
+        const startComponent = state.components.find(c => c.id === connection.from.componentId);
+        const startPoint = startComponent.connectionPoints[connection.from.pointIndex];
+        start = {
+          x: startComponent.position.x * GRID_SIZE + startPoint.x + DOT_SIZE,
+          y: startComponent.position.y * GRID_SIZE + startPoint.y,
+        };
+      }
 
-      const start = {
-        x: startComponent.position.x * GRID_SIZE + startPoint.x + DOT_SIZE,
-        y: startComponent.position.y * GRID_SIZE + startPoint.y,
-      };
-      const end = {
-        x: endComponent.position.x * GRID_SIZE + endPoint.x + DOT_SIZE,
-        y: endComponent.position.y * GRID_SIZE + endPoint.y,
-      };
+      if (connection.to.customPointId) {
+        const endPoint = customConnectionPoints.find(p => p.id === connection.to.customPointId);
+        end = { x: endPoint.x + DOT_SIZE / 2, y: endPoint.y + DOT_SIZE / 2 };
+      } else {
+        const endComponent = state.components.find(c => c.id === connection.to.componentId);
+        const endPoint = endComponent.connectionPoints[connection.to.pointIndex];
+        end = {
+          x: endComponent.position.x * GRID_SIZE + endPoint.x + DOT_SIZE,
+          y: endComponent.position.y * GRID_SIZE + endPoint.y,
+        };
+      }
 
       return (
         <line
@@ -160,10 +214,12 @@ const Breadboard = ({ state, setState }) => {
             boardRef.current = node;
           }}
           className="breadboard-container"
+          onClick={handleGridClick}
         >
           <svg width="800" height="400" style={{position: 'absolute', top: 0, left: 0, pointerEvents: 'none'}}>
             {renderWires()}
           </svg>
+          {renderCustomConnectionPoints()}
           {(state.components || []).map(component => (
             <DraggableComponent
               key={component.id}
