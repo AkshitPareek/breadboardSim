@@ -4,7 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import Breadboard from './components/Breadboard';
 import ComponentList from './components/ComponentList';
 import CustomDragLayer from './components/CustomDragLayer';
-import './App.css';
+import './css/App.css';
 
 function App() {
   const [state, setState] = useState({

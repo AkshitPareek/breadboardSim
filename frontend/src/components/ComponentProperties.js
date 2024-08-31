@@ -1,5 +1,5 @@
 import React from 'react';
-import './ComponentProperties.css';
+import '../css/ComponentProperties.css';
 
 const ComponentProperties = ({ component, onUpdate, onClose }) => {
   if (!component) return null;
@@ -209,16 +209,7 @@ const ComponentProperties = ({ component, onUpdate, onClose }) => {
       <button className="close-button" onClick={onClose}>&times;</button>
       <h3>{component.type.charAt(0).toUpperCase() + component.type.slice(1)} Properties</h3>
       {renderProperties()}
-      <label>
-        Rotation (degrees):
-        <input
-          type="number"
-          name="rotation"
-          value={component.rotation || 0}
-          onChange={(e) => onUpdate(component.id, { rotation: parseInt(e.target.value, 10) })}
-          step="90"
-        />
-      </label>
+      {/* Remove the rotation input */}
     </div>
   );
 };
