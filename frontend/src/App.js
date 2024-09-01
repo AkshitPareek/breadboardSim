@@ -12,6 +12,7 @@ function App() {
     connections: [],
     customConnectionPoints: []
   });
+
   const [message, setMessage] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -86,19 +87,28 @@ function App() {
 
   const simulateCircuit = async () => {
     try {
+      const requestBody = {
+        components: [
+          { id: 'battery-1', type: 'battery', value: 9 },
+          { id: 'resistor-1', type: 'resistor', value: 2 },
+          { id: 'resistor-2', type: 'resistor', value: 3 },
+          { id: 'resistor-3', type: 'resistor', value: 4 },
+        ],
+        connections: [
+          { from: 'battery-1', to: 'resistor-1' },
+          { from: 'resistor-1', to: 'resistor-2' },
+          { from: 'resistor-2', to: 'resistor-3' },
+          { from: 'resistor-3', to: 'battery-1' },
+        ],
+      };
+      console.log('Simulating circuit with request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch('http://localhost:8080/api/simulate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          components: state.components.map(comp => ({
-            id: comp.id,
-            type: comp.type,
-            value: comp.properties.value || 0,
-          })),
-          connections: state.connections,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -107,8 +117,12 @@ function App() {
 
       const result = await response.json();
       console.log('Simulation results:', result);
-      // TODO: Display the results in the UI
       showMessage('Circuit simulated successfully!');
+      // Display the results
+      setState(prevState => ({
+        ...prevState,
+        simulationResults: result,
+      }));
     } catch (error) {
       console.error('Error simulating circuit:', error);
       showMessage('Error simulating circuit. Please try again.');

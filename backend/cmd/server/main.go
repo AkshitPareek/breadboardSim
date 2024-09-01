@@ -3,12 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	// "io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
-	// Add this import
 	"breadboard-simulator/internal/simulation"
 )
 
@@ -36,14 +34,13 @@ var (
 	stateMutex sync.RWMutex
 )
 
-// Add this struct
 type SimulationRequest struct {
 	Components  []simulation.Component  `json:"components"`
 	Connections []simulation.Connection `json:"connections"`
 }
 
-// Add this function
 func handleSimulate(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request to /api/simulate")
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -51,9 +48,12 @@ func handleSimulate(w http.ResponseWriter, r *http.Request) {
 
 	var simReq SimulationRequest
 	if err := json.NewDecoder(r.Body).Decode(&simReq); err != nil {
+		log.Println("Error decoding request body:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	log.Println("Simulation request body:", simReq)
 
 	circuit := simulation.Circuit{
 		Components:  simReq.Components,
@@ -62,6 +62,7 @@ func handleSimulate(w http.ResponseWriter, r *http.Request) {
 
 	voltages, currents, err := simulation.CalculateVoltageAndCurrent(circuit)
 	if err != nil {
+		log.Println("Error calculating voltage and current:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -71,16 +72,19 @@ func handleSimulate(w http.ResponseWriter, r *http.Request) {
 		"currents": currents,
 	}
 
+	log.Println("Simulation response:", response)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("Error encoding response:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func main() {
 	mux := http.NewServeMux()
 
-	// Add this line
 	mux.HandleFunc("/", enableCORS(handleRoot))
-
 	mux.HandleFunc("/api/components", enableCORS(handleComponents))
 	mux.HandleFunc("/api/save", enableCORS(handleSave))
 	mux.HandleFunc("/api/load", enableCORS(handleLoad))
@@ -94,7 +98,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
-// Add this function
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Breadboard Simulator API is running")
 }

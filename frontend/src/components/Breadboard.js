@@ -168,23 +168,29 @@ const Breadboard = ({ state, setState }) => {
               isActive={wireStart && wireStart.customPointId === point.id}
             />
           ))}
-          {state.components.map(component => (
-            <div
-              key={component.id}
-              style={{
-                position: 'absolute',
-                left: `${component.position.x * GRID_SIZE}px`,
-                top: `${component.position.y * GRID_SIZE}px`,
-              }}
-            >
-              <Component
-                component={component}
-                onMove={handleConnectionPointClick}
-                activeWireStart={wireStart}
-                onClick={() => handleComponentClick(component)}
-              />
-            </div>
-          ))}
+          {state.components.map(component => {
+            if (!component.position) {
+              console.error(`Component ${component.id} is missing position property`);
+              return null;
+            }
+            return (
+              <div
+                key={component.id}
+                style={{
+                  position: 'absolute',
+                  left: `${component.position.x * GRID_SIZE}px`,
+                  top: `${component.position.y * GRID_SIZE}px`,
+                }}
+              >
+                <Component
+                  component={component}
+                  onMove={handleConnectionPointClick}
+                  activeWireStart={wireStart}
+                  onClick={() => handleComponentClick(component)}
+                />
+              </div>
+            );
+          })}
         </div>
         {isPropertiesPanelOpen && (
           <ComponentProperties
