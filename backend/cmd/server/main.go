@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	// Add this import
+	"breadboard-simulator/internal/simulation"
 )
 
 type BreadboardState struct {
@@ -34,6 +36,45 @@ var (
 	stateMutex sync.RWMutex
 )
 
+// Add this struct
+type SimulationRequest struct {
+	Components  []simulation.Component  `json:"components"`
+	Connections []simulation.Connection `json:"connections"`
+}
+
+// Add this function
+func handleSimulate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var simReq SimulationRequest
+	if err := json.NewDecoder(r.Body).Decode(&simReq); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	circuit := simulation.Circuit{
+		Components:  simReq.Components,
+		Connections: simReq.Connections,
+	}
+
+	voltages, currents, err := simulation.CalculateVoltageAndCurrent(circuit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"voltages": voltages,
+		"currents": currents,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -47,6 +88,7 @@ func main() {
 	mux.HandleFunc("/api/load-file", enableCORS(handleLoadFile))
 	mux.HandleFunc("/api/download", enableCORS(handleDownload))
 	mux.HandleFunc("/api/upload", enableCORS(handleUpload))
+	mux.HandleFunc("/api/simulate", enableCORS(handleSimulate))
 
 	log.Println("Server starting on :8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))

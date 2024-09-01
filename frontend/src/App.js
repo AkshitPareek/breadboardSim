@@ -84,6 +84,37 @@ function App() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const simulateCircuit = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/simulate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          components: state.components.map(comp => ({
+            id: comp.id,
+            type: comp.type,
+            value: comp.properties.value || 0,
+          })),
+          connections: state.connections,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to simulate circuit');
+      }
+
+      const result = await response.json();
+      console.log('Simulation results:', result);
+      // TODO: Display the results in the UI
+      showMessage('Circuit simulated successfully!');
+    } catch (error) {
+      console.error('Error simulating circuit:', error);
+      showMessage('Error simulating circuit. Please try again.');
+    }
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="App">
@@ -100,6 +131,7 @@ function App() {
             onChange={uploadCircuit} 
             accept=".json"
           />
+          <button onClick={simulateCircuit}>Simulate Circuit</button>
         </div>
         <ComponentList components={components} />
         <Breadboard 
