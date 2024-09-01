@@ -53,32 +53,37 @@ func handleSimulate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Simulation request body:", simReq)
+	log.Printf("Simulation request body: %+v\n", simReq)
 
+	// Create a Circuit struct from the request
 	circuit := simulation.Circuit{
 		Components:  simReq.Components,
 		Connections: simReq.Connections,
 	}
 
+	// Calculate voltages and currents
 	voltages, currents, err := simulation.CalculateVoltageAndCurrent(circuit)
 	if err != nil {
-		log.Println("Error calculating voltage and current:", err)
+		log.Printf("Error calculating voltage and current: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Prepare the response
 	response := map[string]interface{}{
 		"voltages": voltages,
 		"currents": currents,
 	}
 
-	log.Println("Simulation response:", response)
-
+	// Send the response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Println("Error encoding response:", err)
+		log.Printf("Error encoding response: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	log.Printf("Simulation response: %+v\n", response)
 }
 
 func main() {
