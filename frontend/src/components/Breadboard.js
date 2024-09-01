@@ -7,6 +7,18 @@ import ComponentProperties from './ComponentProperties';
 import { GRID_SIZE, COMPONENT_WIDTH, COMPONENT_HEIGHT } from '../constants';
 import '../css/Breadboard.css';
 
+const COMPONENT_PROPERTIES = {
+  resistor: { resistance: 0, powerRating: 0, tolerance: 0 },
+  capacitor: { capacitance: 0, voltageRating: 0, capacitorType: 'Electrolytic' },
+  inductor: { inductance: 0, currentRating: 0 },
+  diode: { forwardVoltage: 0, maxCurrent: 0 },
+  led: { forwardVoltage: 0, maxCurrent: 0, color: 'Red' },
+  transistor: { transistorType: 'NPN', gain: 0, maxCollectorCurrent: 0 },
+  ic: { icType: '', description: '' },
+  battery: { voltage: 0, capacity: 0 },
+  power_supply: { voltage: 0, maxCurrent: 0 }
+};
+
 const Breadboard = ({ state, setState }) => {
   const boardRef = useRef(null);
   const [wireStart, setWireStart] = useState(null);
@@ -42,7 +54,7 @@ const Breadboard = ({ state, setState }) => {
       id: `${type}-${Date.now()}`,
       type,
       position: { x, y },
-      properties: {},
+      properties: { ...COMPONENT_PROPERTIES[type] }, // Initialize properties based on type
       connectionPoints: [
         { x: 0, y: COMPONENT_HEIGHT / 2 },
         { x: COMPONENT_WIDTH, y: COMPONENT_HEIGHT / 2 },
@@ -91,6 +103,7 @@ const Breadboard = ({ state, setState }) => {
   };
 
   const updateComponentProperties = (id, newProperties) => {
+    console.log(`Updating properties for component ${id}:`, newProperties);
     setState(prevState => ({
       ...prevState,
       components: prevState.components.map(comp =>

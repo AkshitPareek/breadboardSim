@@ -60,6 +60,21 @@ const ICIcon = () => (
   </IconWrapper>
 );
 
+const BatteryIcon = () => (
+  <IconWrapper>
+    <rect x="10" y="15" width="20" height="10" fill="#000" />
+    <rect x="30" y="17" width="5" height="6" fill="#000" />
+  </IconWrapper>
+);
+
+const PowerSupplyIcon = () => (
+  <IconWrapper>
+    <rect x="5" y="10" width="30" height="20" fill="#000" />
+    <circle cx="15" cy="20" r="5" fill="#fff" />
+    <circle cx="25" cy="20" r="5" fill="#fff" />
+  </IconWrapper>
+);
+
 export const getComponentIcon = (type) => {
   switch (type) {
     case 'resistor':
@@ -76,6 +91,10 @@ export const getComponentIcon = (type) => {
       return <TransistorIcon />;
     case 'ic':
       return <ICIcon />;
+    case 'battery':
+      return <BatteryIcon />;
+    case 'power_supply':
+      return <PowerSupplyIcon />;
     default:
       return <span>?</span>;
   }

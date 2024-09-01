@@ -30,9 +30,11 @@ const DraggableComponent = ({ component }) => {
 };
 
 const ComponentList = ({ components }) => {
+  const allComponents = [...components, 'battery', 'power_supply'];
+  
   return (
     <div className="component-list">
-      {components.map((component, index) => (
+      {allComponents.map((component, index) => (
         <DraggableComponent key={index} component={component} />
       ))}
     </div>
