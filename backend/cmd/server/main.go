@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"breadboard-simulator/internal/simulation"
+	"breadboard-simulator/circuit"
 )
 
 type BreadboardState struct {
