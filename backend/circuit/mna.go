@@ -111,7 +111,7 @@ func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map
     
 	A := mat.NewDense(n+m-1, n+m-1, nil)
 	x := buildxMatrix(c, nodeNumbers)
-	z := buildzMatrix(c, nodeNumbers)
+	z := buildzMatrix(c, nodeNumbers, nodeComponents)
     
 	// Copy the G matrix into the top-left corner of A
     G := buildGMatrix(c, nodeNumbers, nodeComponents)
@@ -279,13 +279,13 @@ func buildjMatrix(c *Circuit) *mat.VecDense {
     j := mat.NewVecDense(m, nil)
     return j
 }
-func buildzMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+func buildzMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
     m := countVoltageSources(c)
     n := len(nodeNumbers)
-    z := mat.NewVecDense(m+n, nil)
+    z := mat.NewVecDense(m+n-1, nil)
 
     // First n rows of z are matrix i (currents)
-    i := buildiMatrix(c, nodeNumbers)
+    i := buildiMatrix(c, nodeNumbers, nodeComponents)
     for k := 0; k < n-1; k++ {
         z.SetVec(k, i.AtVec(k))
     }
@@ -299,10 +299,26 @@ func buildzMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
     return z
 }
 
-func buildiMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+func buildiMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
     n := len(nodeNumbers)
     i := mat.NewVecDense(n, nil)
     // TODO: Implement i matrix (currents through voltage sources: none for now)
+    for nodeName, components := range nodeComponents {
+        if nodeName != "ground"{
+            comp := findComponentByID(c, globalNodeMapping[nodeName])
+            if comp.Type == CurrentSource {
+                currentValue := i.AtVec(nodeNumbers[nodeName]-1)
+                i.SetVec(nodeNumbers[nodeName]-1, currentValue + comp.Value)
+            }
+            for _, compID := range components {
+                compIn := findComponentByID(c, compID)
+                if compIn.Type == CurrentSource {
+                    currentValue := i.AtVec(nodeNumbers[nodeName]-1)
+                    i.SetVec(nodeNumbers[nodeName]-1, currentValue - compIn.Value)
+                }
+            }
+        }
+    }
     return i
 }
 

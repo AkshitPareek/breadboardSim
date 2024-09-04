@@ -5,6 +5,7 @@ type ComponentType string
 const (
     Battery  ComponentType = "battery"
     Resistor ComponentType = "resistor"
+    CurrentSource ComponentType = "current_source"
     // Add more component types as needed
 )
 
