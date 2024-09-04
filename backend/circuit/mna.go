@@ -100,182 +100,153 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 	return nodeNumbers, nodeComponents
 }
 
-// func appendUnique(slice []string, item string) []string {
-//     for _, element := range slice {
-//         if element == item {
-//             return slice
-//         }
-//     }
-//     return append(slice, item)
-// }
 
-func contains(slice []string, item string) bool {
-	for _, element := range slice {
-		if element == item {
-			return true
-		}
-	}
-	return false
-}
-
-// Make sure this function is available in your package
-// func findComponent(c *Circuit, from, to string) Component {
-//     for _, comp := range c.Components {
-//         if (comp.ID == from && findConnectionTo(c, comp.ID) == to) ||
-//            (comp.ID == to && findConnectionFrom(c, comp.ID) == from) {
-//             return comp
-//         }
-//     }
-//     return Component{} // Return an empty component if not found
-// }
-
-// /////////////////////////////////////////////
-func buildGMatrix(circuit *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
-	// Determine the size of the matrix
-	matrixSize := len(nodeNumbers) // Ensure this reflects the actual number of nodes
-
-	// Initialize the G matrix with the correct size
-	G := mat.NewDense(matrixSize-1, matrixSize-1, nil)
-
-	for nodeName, components := range nodeComponents {
-		if nodeName == "ground" {
-			continue
-		}
-
-		nodeIndex := nodeNumbers[nodeName] - 1 // Adjust for 0-based indexing
-
-		// Calculate total conductance for the node
-		totalConductance := 0.0
-		for _, compID := range components {
-			for _, comp := range circuit.Components {
-				if comp.ID == compID && comp.Type == Resistor {
-					totalConductance += 1.0 / comp.Value
-				}
-			}
-		}
-
-		if totalConductance > 0 {
-			G.Set(nodeIndex, nodeIndex, totalConductance)
-			// fmt.Println(nodeName, nodeIndex, totalConductance)
-		}
-	}
-
-	// Build off-diagonal elements of G matrix
-	for nodeName1, components1 := range nodeComponents {
-		for nodeName2, components2 := range nodeComponents {
-			if nodeName1 == "ground" || nodeName2 == "ground" || nodeName1 == nodeName2 {
-				continue
-			}
-
-			for _, compID := range components1 {
-				if contains(components2, compID) {
-					comp := findComponentByID(circuit, compID)
-					if comp.Type == Resistor {
-						conductance := 1.0 / comp.Value * (-1.0)
-						i := nodeNumbers[nodeName1] - 1
-						j := nodeNumbers[nodeName2] - 1
-
-						// Stamp the negative conductance at (i,j) and (j,i)
-						G.Set(i, j, conductance)
-						G.Set(j, i, conductance)
-						// fmt.Println(i, j, conductance, comp.Value)
-						// fmt.Println(i, j, conductance)
-					}
-				}
-			}
-		}
-	}
-
-	return G
-}
 
 func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) (*mat.Dense, *mat.VecDense, *mat.VecDense) {
-	n := len(nodeNumbers)
+    n := len(nodeNumbers)
 	m := countVoltageSources(c)
-
+    
 	A := mat.NewDense(n+m-1, n+m-1, nil)
 	x := mat.NewVecDense(n+m-1, nil)
 	z := mat.NewVecDense(n+m-1, nil)
-
+    
 	// Build G matrix
 	for nodeName, components := range nodeComponents {
-		if nodeName == "ground" {
-			continue
+        if nodeName == "ground" {
+            continue
 		}
-
+        
 		nodeIndex := nodeNumbers[nodeName] - 1 // Adjust for 0-based indexing
-
+        
 		// Calculate total conductance for the node
 		totalConductance := 0.0
 		for _, compID := range components {
-			for _, comp := range c.Components {
-				if comp.ID == compID && comp.Type == Resistor {
-					totalConductance += 1.0 / comp.Value
+            for _, comp := range c.Components {
+                if comp.ID == compID && comp.Type == Resistor {
+                    totalConductance += 1.0 / comp.Value
 				}
 			}
 		}
-
+        
 		if totalConductance > 0 {
-			A.Set(nodeIndex, nodeIndex, totalConductance)
+            A.Set(nodeIndex, nodeIndex, totalConductance)
 		}
 	}
-
+    
 	// Build off-diagonal elements of G matrix
 	for nodeName1, components1 := range nodeComponents {
-		for nodeName2, components2 := range nodeComponents {
-			if nodeName1 == "ground" || nodeName2 == "ground" || nodeName1 == nodeName2 {
-				continue
+        for nodeName2, components2 := range nodeComponents {
+            if nodeName1 == "ground" || nodeName2 == "ground" || nodeName1 == nodeName2 {
+                continue
 			}
-
+            
 			for _, compID := range components1 {
-				if contains(components2, compID) {
-					comp := findComponentByID(c, compID)
+                if contains(components2, compID) {
+                    comp := findComponentByID(c, compID)
 					if comp.Type == Resistor {
-						conductance := 1.0 / comp.Value * (-1.0)
+                        conductance := 1.0 / comp.Value * (-1.0)
 						i := nodeNumbers[nodeName1] - 1
 						j := nodeNumbers[nodeName2] - 1
-
+                        
 						// Stamp the negative conductance at (i,j) and (j,i)
 						A.Set(i, j, conductance)
 						A.Set(j, i, conductance)
-
+                        
 					}
 				}
 			}
 		}
 	}
-
+    
 	// G Matrix built
-
+    
 	// Build B matrix
 	// B := buildBMatrix(c, nodeNumbers, nodeComponents)
-
+    
 	// // Combine A and B matrices
 	// combined := mat.NewDense(n+m-1, n+m-1, nil)
 	// combined.Stack(A, B.T())
 	// combined.Stack(B, mat.NewDense(m, m, nil))
-
+    
 	return A, x, z
 }
 
+func buildGMatrix(circuit *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
+    // Determine the size of the matrix
+    matrixSize := len(nodeNumbers) // Ensure this reflects the actual number of nodes
+    
+    // Initialize the G matrix with the correct size
+    G := mat.NewDense(matrixSize-1, matrixSize-1, nil)
+    
+    for nodeName, components := range nodeComponents {
+        if nodeName == "ground" {
+            continue
+        }
+        
+        nodeIndex := nodeNumbers[nodeName] - 1 // Adjust for 0-based indexing
+        
+        // Calculate total conductance for the node
+        totalConductance := 0.0
+        for _, compID := range components {
+            for _, comp := range circuit.Components {
+                if comp.ID == compID && comp.Type == Resistor {
+                    totalConductance += 1.0 / comp.Value
+                }
+            }
+        }
+        
+        if totalConductance > 0 {
+            G.Set(nodeIndex, nodeIndex, totalConductance)
+            // fmt.Println(nodeName, nodeIndex, totalConductance)
+        }
+    }
+    
+    // Build off-diagonal elements of G matrix
+    for nodeName1, components1 := range nodeComponents {
+        for nodeName2, components2 := range nodeComponents {
+            if nodeName1 == "ground" || nodeName2 == "ground" || nodeName1 == nodeName2 {
+                continue
+            }
+            
+            for _, compID := range components1 {
+                if contains(components2, compID) {
+                    comp := findComponentByID(circuit, compID)
+                    if comp.Type == Resistor {
+                        conductance := 1.0 / comp.Value * (-1.0)
+                        i := nodeNumbers[nodeName1] - 1
+                        j := nodeNumbers[nodeName2] - 1
+                        
+                        // Stamp the negative conductance at (i,j) and (j,i)
+                        G.Set(i, j, conductance)
+                        G.Set(j, i, conductance)
+                        // fmt.Println(i, j, conductance, comp.Value)
+                        // fmt.Println(i, j, conductance)
+                    }
+                }
+            }
+        }
+    }
+    
+    return G
+}
 func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
     m := countVoltageSources(c)
     n := len(nodeNumbers)
     B := mat.NewDense(n-1, m, nil) // Initialize B matrix with zeros, note the dimension swap
-
+    
     voltIndex := 0
     for _, comp := range c.Components {
         if comp.Type == Battery {
             var positiveNode, negativeNode string
-
+            
             // Determine positive and negative nodes
             for nodeName, components := range nodeComponents {
                 if contains(components, comp.ID) {
                     if nodeName == "ground" {
                         negativeNode = nodeName
-                    } else if positiveNode == "" {
-                        positiveNode = nodeName
-                    } else {
+                        } else if positiveNode == "" {
+                            positiveNode = nodeName
+                            } else {
                         negativeNode = nodeName
                     }
                 }
@@ -288,11 +259,11 @@ func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
             if negativeNode != "ground" {
                 B.Set(nodeNumbers[negativeNode]-1, voltIndex, -1)
             }
-
+            
             voltIndex++
         }
     }
-
+    
     return B
 }
 
@@ -304,46 +275,103 @@ func buildCMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
     return C
 }
 
+func buildDMatrix(c *Circuit) *mat.Dense {
+    m := countVoltageSources(c)
+    D := mat.NewDense(m, m, nil)
+    return D
+}
+
+func buildxMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+    m := countVoltageSources(c)
+    n := len(nodeNumbers)
+    x := mat.NewVecDense(m+n, nil)
+
+
+
+    return x
+}
+
+func buildvMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+    // m := countVoltageSources(c)
+    n := len(nodeNumbers)
+    v := mat.NewVecDense(n, nil)
+    return v
+}
+
+func buildjMatrix(c *Circuit) *mat.VecDense {
+    m := countVoltageSources(c)
+    j := mat.NewVecDense(m, nil)
+    return j
+}
+
 func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
-	for _, conn := range connections {
-		if conn.From == compID || conn.To == compID {
-			return nodeMap[conn.From], nodeMap[conn.To]
+    for _, conn := range connections {
+        if conn.From == compID || conn.To == compID {
+            return nodeMap[conn.From], nodeMap[conn.To]
 		}
 	}
 	return 0, 0 // Return 0 for ground node if not found
 }
 
 func countVoltageSources(c *Circuit) int {
-	count := 0
+    count := 0
 	for _, comp := range c.Components {
-		if comp.Type == Battery {
-			count++
+        if comp.Type == Battery {
+            count++
 		}
 	}
 	return count
 }
 
 func findComponentByID(c *Circuit, id string) Component {
-	for _, comp := range c.Components {
-		if comp.ID == id {
-			return comp
+    for _, comp := range c.Components {
+        if comp.ID == id {
+            return comp
 		}
 	}
 	return Component{} // Return an empty component if not found
 }
 
-// func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
-//     for _, conn := range connections {
-//         if conn.From == compID {
-//             return nodeMap[conn.From], nodeMap[conn.To]
-//         }
-//         if conn.To == compID {
-//             return nodeMap[conn.To], nodeMap[conn.From]
+// func appendUnique(slice []string, item string) []string {
+//     for _, element := range slice {
+//         if element == item {
+//             return slice
 //         }
 //     }
-//     return 0, 0 // Return 0 for ground node if not found
+//     return append(slice, item)
 // }
 
+func contains(slice []string, item string) bool {
+    for _, element := range slice {
+        if element == item {
+            return true
+        }
+    }
+    return false
+}
+
+// Make sure this function is available in your package
+// func findComponent(c *Circuit, from, to string) Component {
+//     for _, comp := range c.Components {
+//         if (comp.ID == from && findConnectionTo(c, comp.ID) == to) ||
+//            (comp.ID == to && findConnectionFrom(c, comp.ID) == from) {
+//             return comp
+//         }
+//     }
+//     return Component{} // Return an empty component if not found
+// }
+// func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
+    //     for _, conn := range connections {
+        //         if conn.From == compID {
+            //             return nodeMap[conn.From], nodeMap[conn.To]
+            //         }
+            //         if conn.To == compID {
+                //             return nodeMap[conn.To], nodeMap[conn.From]
+                //         }
+                //     }
+                //     return 0, 0 // Return 0 for ground node if not found
+                // }
+                
 // func getVoltageSourceIndex(voltageID string, c *Circuit) int {
 //     index := 0
 //     for _, comp := range c.Components {
