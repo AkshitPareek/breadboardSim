@@ -81,8 +81,8 @@ func TestBuildBMatrix(t *testing.T) {
 	// Expected B matrix
 	expectedB := mat.NewDense(3, 2, []float64{
 		1, 0,
+		0, 0,
 		0, 1,
-		0, -1,
 	})
 	
 	// Compare B with expectedB

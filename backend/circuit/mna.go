@@ -248,14 +248,14 @@ func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map
 	// G Matrix built
 
 	// Build B matrix
-	B := buildBMatrix(c, nodeNumbers, nodeComponents)
+	// B := buildBMatrix(c, nodeNumbers, nodeComponents)
 
-	// Combine A and B matrices
-	combined := mat.NewDense(n+m-1, n+m-1, nil)
-	combined.Stack(A, B.T())
-	combined.Stack(B, mat.NewDense(m, m, nil))
+	// // Combine A and B matrices
+	// combined := mat.NewDense(n+m-1, n+m-1, nil)
+	// combined.Stack(A, B.T())
+	// combined.Stack(B, mat.NewDense(m, m, nil))
 
-	return combined, x, z
+	return A, x, z
 }
 
 func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
