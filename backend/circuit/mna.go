@@ -10,6 +10,15 @@ import (
 
 var globalNodeMapping = make(map[string]string)
 
+// sourcePolarity maps voltage source IDs to their polarity and connected nodes
+// The int represents the node number, and the string represents the polarity ('+' or '-')
+var sourcePolarity = make(map[string]struct {
+    NodeNumber int
+    Polarity   string
+})
+
+var sourceIndex = make(map[string]int)
+
 func SolveCircuit(c *Circuit) (map[string]float64, error) {
 	// 1. Assign node numbers
 	nodeMap, nodeComponents := assignNodeNumbers(c)
@@ -39,9 +48,10 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 	visitedFrom := make(map[string]bool)
 	visitedTo := make(map[string]bool)
 
+    srcIdx := 0
+
 	// Assign node numbers to all nodes except ground
 	for _, conn := range c.Connections {
-		currNode := conn.From
 		if conn.From == "ground" {
 			nodeComponents["ground"] = append(nodeComponents["ground"], conn.To)
 			visitedTo[conn.To] = true
@@ -52,24 +62,73 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 			visitedFrom[conn.From] = true
 			continue
 		}
+		// Check if conn.From or conn.To are voltage sources
+		isFromVoltageSource := false
+		isToVoltageSource := false
+		for _, component := range c.Components {
+                sourceIndex[component.ID] = srcIdx;
+                srcIdx++;
+				if component.ID == conn.From {
+					isFromVoltageSource = true
+				}
+				if component.ID == conn.To {
+					isToVoltageSource = true
+				}
+        }
 
 		if !visitedFrom[conn.From] && !visitedTo[conn.To] {
-			if _, exists := nodeNumbers[currNode]; !exists {
-				nodeNumbers[currNode] = nextNode
+			if _, exists := nodeNumbers[conn.From]; !exists {
+				nodeNumbers[conn.From] = nextNode
+                if(isFromVoltageSource){
+                    sourcePolarity[conn.From] = struct {
+                        NodeNumber int
+                        Polarity   string
+                    } {
+                        NodeNumber: nodeNumbers[conn.From],
+                        Polarity:   conn.Polarity,
+                    }
+                }
+                if(isToVoltageSource){
+                    sourcePolarity[conn.To] = struct {
+                        NodeNumber int
+                        Polarity   string
+                    } {
+                        NodeNumber: nodeNumbers[conn.From],
+                        Polarity:   conn.Polarity,
+                    }
+                }
 				nextNode++
 			}
-			nodeComponents[currNode] = append(nodeComponents[currNode], conn.From, conn.To)
+			nodeComponents[conn.From] = append(nodeComponents[conn.From], conn.From, conn.To)
 			visitedFrom[conn.From] = true
 			visitedTo[conn.To] = true
 		} else if visitedFrom[conn.From] && !visitedTo[conn.To] {
-			nodeComponents[currNode] = append(nodeComponents[currNode], conn.To)
+            if(isToVoltageSource){
+                sourcePolarity[conn.To] = struct {
+                    NodeNumber int
+                    Polarity   string
+                } {
+                    NodeNumber: nodeNumbers[conn.From],
+                    Polarity:   conn.Polarity,
+                }
+            }
+			nodeComponents[conn.From] = append(nodeComponents[conn.From], conn.To)
 			visitedTo[conn.To] = true
 		} else if !visitedFrom[conn.From] && visitedTo[conn.To] {
-            if _, exists := nodeNumbers[currNode]; !exists {
-				nodeNumbers[currNode] = nextNode
+            if _, exists := nodeNumbers[conn.From]; !exists {
+				nodeNumbers[conn.From] = nextNode
+                if(isFromVoltageSource){
+                    sourcePolarity[conn.From] = struct {
+                        NodeNumber int
+                        Polarity   string
+                    } {
+                        NodeNumber: nodeNumbers[conn.From],
+                        Polarity:   conn.Polarity,
+                    }
+                }
 				nextNode++
 			}
-			nodeComponents[currNode] = append(nodeComponents[currNode], conn.From, conn.To)
+			nodeComponents[conn.From] = append(nodeComponents[conn.From], conn.From, conn.To)
 			visitedFrom[conn.From] = true
 		}
 
@@ -206,29 +265,11 @@ func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
     n := len(nodeNumbers)
     B := mat.NewDense(n-1, m, nil) // Initialize B matrix with zeros, note the dimension swap
     
-    voltIndex := 0
-    for _, comp := range c.Components {
-        if comp.Type == Battery {
-            var positiveNode, negativeNode string
-            
-            // Determine positive and negative nodes
-            for nodeName, components := range nodeComponents {
-                if(nodeName != "ground" && globalNodeMapping[nodeName] == comp.ID) {
-                    positiveNode = nodeName
-                }else if contains(components, comp.ID) {
-                    negativeNode = nodeName
-                }
-            }
-
-            // Set values in B matrix
-            if positiveNode != "ground" {
-                B.Set(nodeNumbers[positiveNode]-1, voltIndex, 1)
-            }
-            if negativeNode != "ground" {
-                B.Set(nodeNumbers[negativeNode]-1, voltIndex, -1)
-            }
-            
-            voltIndex++
+   for compID, source := range sourcePolarity {
+        if source.Polarity == "+" {
+            B.Set(source.NodeNumber-1, sourceIndex[compID], 1)
+        } else {
+            B.Set(source.NodeNumber-1, sourceIndex[compID], -1)
         }
     }
     

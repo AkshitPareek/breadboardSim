@@ -18,6 +18,7 @@ type Component struct {
 type Connection struct {
     From string
     To   string
+    Polarity string
 }
 
 type Circuit struct {

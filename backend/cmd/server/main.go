@@ -33,10 +33,9 @@ var (
 	sessionState BreadboardState
 	stateMutex sync.RWMutex
 )
-
 type SimulationRequest struct {
-	Components  []simulation.Component  `json:"components"`
-	Connections []simulation.Connection `json:"connections"`
+	Components  []circuit.Component  `json:"components"`
+	Connections []circuit.Connection `json:"connections"`
 }
 
 func handleSimulate(w http.ResponseWriter, r *http.Request) {
@@ -54,15 +53,14 @@ func handleSimulate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Simulation request body: %+v\n", simReq)
-
 	// Create a Circuit struct from the request
-	circuit := simulation.Circuit{
+	circuitInstance := circuit.Circuit{
 		Components:  simReq.Components,
 		Connections: simReq.Connections,
 	}
 
 	// Calculate voltages and currents
-	voltages, currents, err := simulation.CalculateVoltageAndCurrent(circuit)
+	voltages, currents, err := circuit.CalculateVoltageAndCurrent(circuitInstance)
 	if err != nil {
 		log.Printf("Error calculating voltage and current: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
