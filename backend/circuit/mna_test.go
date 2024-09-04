@@ -21,9 +21,9 @@ var testCircuit = &Circuit{
 		{From: "V1", To: "R1"},
 		{From: "R1", To: "R2"},
 		{From: "R1", To: "R3"},
-		{From: "R2", To: "V2"},
-		{From: "V2", To: "ground"},
 		{From: "R3", To: "ground"},
+		{From: "V2", To: "R2"},
+		{From: "ground", To: "V2"},
 	},
 }
 
@@ -61,18 +61,47 @@ func TestBuildMNAMatrices(t *testing.T) {
 	// Print matrix contents
 	fmt.Printf("%v\n", mat.Formatted(A, mat.Prefix("    "), mat.Squeeze()))
 }
-	
 
+func TestBuildBMatrix(t *testing.T) {
+	nodeNumbers, nodeComponents := assignNodeNumbers(testCircuit)
+	B := buildBMatrix(testCircuit, nodeNumbers, nodeComponents)
+	
+	fmt.Println("B Matrix:")
+	if B == nil {
+		t.Fatal("B matrix is nil")
+	}
+	
+	// Print matrix dimensions
+	r, c := B.Dims()
+	fmt.Printf("Matrix dimensions: %d x %d\n", r, c)
+	
+	// Print matrix contents
+	fmt.Printf("%v\n", mat.Formatted(B, mat.Prefix("    "), mat.Squeeze()))
+	
+	// Expected B matrix
+	expectedB := mat.NewDense(3, 2, []float64{
+		1, 0,
+		0, 1,
+		0, -1,
+	})
+	
+	// Compare B with expectedB
+	if !mat.EqualApprox(B, expectedB, 1e-10) {
+		t.Errorf("B matrix does not match expected values.\nGot:\n%v\nWant:\n%v",
+			mat.Formatted(B, mat.Prefix("    "), mat.Squeeze()),
+			mat.Formatted(expectedB, mat.Prefix("    "), mat.Squeeze()))
+	}
+}
 
 func TestAssignNodeNumbers(t *testing.T) {
 
     nodeNumbers, nodeComponents := assignNodeNumbers(testCircuit)
 
 	expectedNodeComponents := map[string][]string{
-        "ground": {"V1", "V2", "R3"},
+        "ground": {"V1", "R3", "V2"},
         "v_1": {"V1", "R1"},
         "v_2": {"R1", "R2", "R3"},
-        "v_3": {"R2", "V2"},
+        "v_3": {"V2", "R2"},
     }
     if !reflect.DeepEqual(nodeComponents, expectedNodeComponents) {
         t.Errorf("Node components mismatch. Got %v, want %v", nodeComponents, expectedNodeComponents)

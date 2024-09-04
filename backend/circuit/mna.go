@@ -63,7 +63,11 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 			nodeComponents[currNode] = append(nodeComponents[currNode], conn.To)
 			visitedTo[conn.To] = true
 		} else if !visitedFrom[conn.From] && visitedTo[conn.To] {
-			nodeComponents[currNode] = append(nodeComponents[currNode], conn.From)
+            if _, exists := nodeNumbers[currNode]; !exists {
+				nodeNumbers[currNode] = nextNode
+				nextNode++
+			}
+			nodeComponents[currNode] = append(nodeComponents[currNode], conn.From, conn.To)
 			visitedFrom[conn.From] = true
 		}
 
@@ -82,11 +86,11 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 	}
 
 	newNodeNumbers := make(map[string]int)
-    newNodeNumbers["ground"] = 0
+	newNodeNumbers["ground"] = 0
 
 	for _, nodeIndex := range nodeNumbers {
 		if nodeIndex > 0 {
-			newNodeNumbers["v_" + strconv.Itoa(nodeIndex)] = nodeIndex
+			newNodeNumbers["v_"+strconv.Itoa(nodeIndex)] = nodeIndex
 		}
 	}
 
@@ -174,7 +178,7 @@ func buildGMatrix(circuit *Circuit, nodeNumbers map[string]int, nodeComponents m
 						// Stamp the negative conductance at (i,j) and (j,i)
 						G.Set(i, j, conductance)
 						G.Set(j, i, conductance)
-                        // fmt.Println(i, j, conductance, comp.Value)
+						// fmt.Println(i, j, conductance, comp.Value)
 						// fmt.Println(i, j, conductance)
 					}
 				}
@@ -234,7 +238,7 @@ func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map
 						// Stamp the negative conductance at (i,j) and (j,i)
 						A.Set(i, j, conductance)
 						A.Set(j, i, conductance)
-						
+
 					}
 				}
 			}
@@ -244,18 +248,61 @@ func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map
 	// G Matrix built
 
 	// Build B matrix
+	B := buildBMatrix(c, nodeNumbers, nodeComponents)
 
-	// Build A and z matrices for voltage sources
-	// voltIndex := 0
-	// for _, comp := range c.Components {
-	//     if comp.Type == Battery {
-	//         n1, n2 := getNodePair(comp.ID, c.Connections, nodeNumbers)
-	//         stampVoltageSource(A, z, n1, n2, voltIndex, comp.Value, n-1)
-	//         voltIndex++
-	//     }
-	// }
+	// Combine A and B matrices
+	combined := mat.NewDense(n+m-1, n+m-1, nil)
+	combined.Stack(A, B.T())
+	combined.Stack(B, mat.NewDense(m, m, nil))
 
-	return A, x, z
+	return combined, x, z
+}
+
+func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
+    m := countVoltageSources(c)
+    n := len(nodeNumbers)
+    B := mat.NewDense(n-1, m, nil) // Initialize B matrix with zeros, note the dimension swap
+
+    voltIndex := 0
+    for _, comp := range c.Components {
+        if comp.Type == Battery {
+            var positiveNode, negativeNode string
+
+            // Determine positive and negative nodes
+            for nodeName, components := range nodeComponents {
+                if contains(components, comp.ID) {
+                    if nodeName == "ground" {
+                        negativeNode = nodeName
+                    } else if positiveNode == "" {
+                        positiveNode = nodeName
+                    } else {
+                        negativeNode = nodeName
+                    }
+                }
+            }
+
+            // Set values in B matrix
+            if positiveNode != "ground" {
+                B.Set(nodeNumbers[positiveNode]-1, voltIndex, 1)
+            }
+            if negativeNode != "ground" {
+                B.Set(nodeNumbers[negativeNode]-1, voltIndex, -1)
+            }
+
+            voltIndex++
+        }
+    }
+
+    return B
+}
+
+func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
+	for _, conn := range connections {
+		if conn.From == compID || conn.To == compID {
+			return nodeMap[conn.From], nodeMap[conn.To]
+		}
+	}
+	return 0, 0 // Return 0 for ground node if not found
 }
 
 func countVoltageSources(c *Circuit) int {
