@@ -296,6 +296,14 @@ func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
     return B
 }
 
+func buildCMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.Dense {
+    B := buildBMatrix(c, nodeNumbers, nodeComponents)
+    rows, cols := B.Dims()
+    C := mat.NewDense(cols, rows, nil)
+    C.Copy(B.T())
+    return C
+}
+
 func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
 	for _, conn := range connections {
 		if conn.From == compID || conn.To == compID {
