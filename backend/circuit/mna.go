@@ -8,6 +8,8 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+var globalNodeMapping = make(map[string]string)
+
 func SolveCircuit(c *Circuit) (map[string]float64, error) {
 	// 1. Assign node numbers
 	nodeMap, nodeComponents := assignNodeNumbers(c)
@@ -88,9 +90,10 @@ func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
 	newNodeNumbers := make(map[string]int)
 	newNodeNumbers["ground"] = 0
 
-	for _, nodeIndex := range nodeNumbers {
+	for nodeName, nodeIndex := range nodeNumbers {
 		if nodeIndex > 0 {
 			newNodeNumbers["v_"+strconv.Itoa(nodeIndex)] = nodeIndex
+            globalNodeMapping["v_" + strconv.Itoa(nodeIndex)] = nodeName 
 		}
 	}
 
@@ -107,66 +110,35 @@ func buildMNAMatrices(c *Circuit, nodeNumbers map[string]int, nodeComponents map
 	m := countVoltageSources(c)
     
 	A := mat.NewDense(n+m-1, n+m-1, nil)
-	x := mat.NewVecDense(n+m-1, nil)
-	z := mat.NewVecDense(n+m-1, nil)
+	x := buildxMatrix(c, nodeNumbers)
+	z := buildzMatrix(c, nodeNumbers)
     
-	// Build G matrix
-	for nodeName, components := range nodeComponents {
-        if nodeName == "ground" {
-            continue
-		}
-        
-		nodeIndex := nodeNumbers[nodeName] - 1 // Adjust for 0-based indexing
-        
-		// Calculate total conductance for the node
-		totalConductance := 0.0
-		for _, compID := range components {
-            for _, comp := range c.Components {
-                if comp.ID == compID && comp.Type == Resistor {
-                    totalConductance += 1.0 / comp.Value
-				}
-			}
-		}
-        
-		if totalConductance > 0 {
-            A.Set(nodeIndex, nodeIndex, totalConductance)
+	// Copy the G matrix into the top-left corner of A
+    G := buildGMatrix(c, nodeNumbers, nodeComponents)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-1; j++ {
+			A.Set(i, j, G.At(i, j))
 		}
 	}
-    
-	// Build off-diagonal elements of G matrix
-	for nodeName1, components1 := range nodeComponents {
-        for nodeName2, components2 := range nodeComponents {
-            if nodeName1 == "ground" || nodeName2 == "ground" || nodeName1 == nodeName2 {
-                continue
-			}
-            
-			for _, compID := range components1 {
-                if contains(components2, compID) {
-                    comp := findComponentByID(c, compID)
-					if comp.Type == Resistor {
-                        conductance := 1.0 / comp.Value * (-1.0)
-						i := nodeNumbers[nodeName1] - 1
-						j := nodeNumbers[nodeName2] - 1
-                        
-						// Stamp the negative conductance at (i,j) and (j,i)
-						A.Set(i, j, conductance)
-						A.Set(j, i, conductance)
-                        
-					}
-				}
-			}
-		}
-	}
-    
-	// G Matrix built
-    
 	// Build B matrix
-	// B := buildBMatrix(c, nodeNumbers, nodeComponents)
-    
-	// // Combine A and B matrices
-	// combined := mat.NewDense(n+m-1, n+m-1, nil)
-	// combined.Stack(A, B.T())
-	// combined.Stack(B, mat.NewDense(m, m, nil))
+	B := buildBMatrix(c, nodeNumbers, nodeComponents)
+	
+	// Copy B matrix into the top-right corner of A
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < m; j++ {
+			A.Set(i, n-1+j, B.At(i, j))
+		}
+	}
+	
+	// Build C matrix
+	C := buildCMatrix(c, nodeNumbers, nodeComponents)
+	
+	// Copy C matrix into the bottom-left corner of A
+	for i := 0; i < m; i++ {
+		for j := 0; j < n-1; j++ {
+			A.Set(n-1+i, j, C.At(i, j))
+		}
+	}
     
 	return A, x, z
 }
@@ -241,14 +213,10 @@ func buildBMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
             
             // Determine positive and negative nodes
             for nodeName, components := range nodeComponents {
-                if contains(components, comp.ID) {
-                    if nodeName == "ground" {
-                        negativeNode = nodeName
-                        } else if positiveNode == "" {
-                            positiveNode = nodeName
-                            } else {
-                        negativeNode = nodeName
-                    }
+                if(nodeName != "ground" && globalNodeMapping[nodeName] == comp.ID) {
+                    positiveNode = nodeName
+                }else if contains(components, comp.ID) {
+                    negativeNode = nodeName
                 }
             }
 
@@ -286,13 +254,21 @@ func buildxMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
     n := len(nodeNumbers)
     x := mat.NewVecDense(m+n, nil)
 
+    // First n rows of x are matrix v (node voltages)
+    v := buildvMatrix(c, nodeNumbers)
+    for k := 0; k < n-1; k++ {
+        x.SetVec(k, v.AtVec(k))
+    }
 
-
+    // Next m rows of x are matrix e (voltage sources)
+    e := buildeMatrix(c)
+    for k := 0; k < m; k++ {
+        x.SetVec(n-1+k, e.AtVec(k))
+    }
     return x
 }
 
 func buildvMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
-    // m := countVoltageSources(c)
     n := len(nodeNumbers)
     v := mat.NewVecDense(n, nil)
     return v
@@ -302,6 +278,45 @@ func buildjMatrix(c *Circuit) *mat.VecDense {
     m := countVoltageSources(c)
     j := mat.NewVecDense(m, nil)
     return j
+}
+func buildzMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+    m := countVoltageSources(c)
+    n := len(nodeNumbers)
+    z := mat.NewVecDense(m+n, nil)
+
+    // First n rows of z are matrix i (currents)
+    i := buildiMatrix(c, nodeNumbers)
+    for k := 0; k < n-1; k++ {
+        z.SetVec(k, i.AtVec(k))
+    }
+
+    // Next m rows of z are matrix e (voltage sources)
+    e := buildeMatrix(c)
+    for k := 0; k < m; k++ {
+        z.SetVec(n-1+k, e.AtVec(k))
+    }
+
+    return z
+}
+
+func buildiMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+    n := len(nodeNumbers)
+    i := mat.NewVecDense(n, nil)
+    // TODO: Implement i matrix (currents through voltage sources: none for now)
+    return i
+}
+
+func buildeMatrix(c *Circuit) *mat.VecDense {
+    m := countVoltageSources(c)
+    e := mat.NewVecDense(m, nil)
+    voltIndex := 0
+    for _, comp := range c.Components {
+        if comp.Type == Battery {
+            e.SetVec(voltIndex, comp.Value)
+            voltIndex++
+        }
+    }
+    return e
 }
 
 func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {
