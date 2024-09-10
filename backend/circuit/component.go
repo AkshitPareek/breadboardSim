@@ -13,6 +13,8 @@ type Component struct {
     ID    string
     Type  ComponentType
     Value float64
+    NodeBefore int
+    NodeAfter int
 }
 
 type Connection struct {

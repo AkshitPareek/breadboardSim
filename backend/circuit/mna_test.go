@@ -6,6 +6,7 @@ import (
 	"testing"
 	"fmt"
 	"gonum.org/v1/gonum/mat"
+	// "strconv"
 )
 
 var testCircuit = &Circuit{
@@ -18,13 +19,15 @@ var testCircuit = &Circuit{
 	},
 	Connections: []Connection{
 		{From: "ground", To: "V1", Polarity: "-"},
-		{From: "V1", To: "R1", Polarity: "+"},
-		{From: "R1", To: "R2", Polarity: ""},
-		{From: "R1", To: "R3", Polarity: ""},
-		{From: "R3", To: "R2", Polarity: ""},
+		{From: "V1", To: "n1", Polarity: "+"},
+		{From: "n1", To: "R1", Polarity: ""},
+		{From: "R1", To: "n2", Polarity: ""},
+		{From: "n2", To: "R2", Polarity: ""},
+		{From: "R2", To: "n3", Polarity: ""},
+		{From: "n3", To: "V2", Polarity: "+"},
+		{From: "V2", To: "ground", Polarity: "-"},
+		{From: "n2", To: "R3", Polarity: ""},
 		{From: "R3", To: "ground", Polarity: ""},
-		{From: "V2", To: "R2", Polarity: "+"},
-		{From: "ground", To: "V2", Polarity: "-"},
 	},
 }
 
@@ -37,13 +40,16 @@ var testCircuit2 = &Circuit{
 		{ID: "R3", Type: Resistor, Value: 8},
 	},
 	Connections: []Connection{
-		{From: "ground", To: "R1"},
-		{From: "R1", To: "V1"},
-		{From: "V1", To: "R2"},
-		{From: "V1", To: "R3"},
-		{From: "R3", To: "ground"},
-		{From: "V2", To: "R2"},
-		{From: "ground", To: "V2"},
+		{From: "ground", To: "R1", Polarity: ""},
+		{From: "R1", To: "n1", Polarity: ""},
+		{From: "n1", To: "V1", Polarity: "-"},
+		{From: "V1", To: "n2", Polarity: "+"},
+		{From: "n2", To: "R2", Polarity: ""},
+		{From: "R2", To: "n3", Polarity: ""},
+		{From: "n3", To: "V2", Polarity: "+"},
+		{From: "V2", To: "ground", Polarity: "-"},
+		{From: "n2", To: "R3", Polarity: ""},
+		{From: "R3", To: "ground", Polarity: ""},
 	},
 }
 
@@ -56,15 +62,16 @@ var testCircuit3 = &Circuit{
 		{ID: "R3", Type: Resistor, Value: 8},
 	},
 	Connections: []Connection{
-		{From: "ground", To: "I1"},
-		// {From: "I1", To: "R1"},
-		// {From: "I1", To: "R2"},
-		{From: "V1", To: "I1"},
-		{From: "V1", To: "R1"},
-		{From: "V1", To: "R2"},
-		{From: "R3", To: "V1"},
-		{From: "ground", To: "R3"},
-		{From: "R1", To: "ground"},
+		{From: "ground", To: "I1", Polarity: "-"},
+		{From: "I1", To: "n1", Polarity: "+"},
+		{From: "n1", To: "V1", Polarity: "-"},
+		{From: "V1", To: "n2", Polarity: "+"},
+		{From: "n2", To: "R1", Polarity: ""},
+		{From: "R1", To: "ground", Polarity: ""},
+		{From: "n2", To: "R2", Polarity: ""},
+		{From: "R2", To: "ground", Polarity: ""},
+		{From: "n2", To: "R3", Polarity: ""},
+		{From: "R3", To: "ground", Polarity: ""},
 	},
 }
 
@@ -76,14 +83,14 @@ var testCases = []struct {
 		name:    "TestCircuit1",
 		circuit: testCircuit,
 	},
-	// {
-	// 	name:    "TestCircuit2",
-	// 	circuit: testCircuit2,
-	// },
-	// {
-	// 	name:    "TestCircuit3",
-	// 	circuit: testCircuit3,
-	// },
+	{
+		name:    "TestCircuit2",
+		circuit: testCircuit2,
+	},
+	{
+		name:    "TestCircuit3",
+		circuit: testCircuit3,
+	},
 }
 
 func TestAssignNodeNumbers(t *testing.T) {
@@ -139,6 +146,23 @@ func TestBuildMNAMatrices(t *testing.T) {
 }
 
 func TestBuildBMatrix(t *testing.T) {
+	expectedB := map[string]*mat.Dense{
+		"TestCircuit1": mat.NewDense(3, 2, []float64{
+			1,  0,
+			0,  0,
+			0,  1,
+		}),
+		"TestCircuit2": mat.NewDense(3, 2, []float64{
+			-1, 0,
+			 1, 0,
+			 0, 1,
+		}),
+		"TestCircuit3": mat.NewDense(2, 1, []float64{
+			-1,
+			 1,
+		}),
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nodeNumbers, nodeComponents := assignNodeNumbers(tc.circuit)
@@ -152,6 +176,12 @@ func TestBuildBMatrix(t *testing.T) {
 			r, c := B.Dims()
 			fmt.Printf("Matrix dimensions: %d x %d\n", r, c)
 			fmt.Printf("%v\n", mat.Formatted(B, mat.Prefix("    "), mat.Squeeze()))
+
+			expected := expectedB[tc.name]
+			if !mat.EqualApprox(B, expected, 1e-6) {
+				t.Errorf("B matrix for %s does not match expected.\nGot:\n%v\nExpected:\n%v",
+					tc.name, mat.Formatted(B), mat.Formatted(expected))
+			}
 		})
 	}
 }
