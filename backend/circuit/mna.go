@@ -296,12 +296,13 @@ func buildjMatrix(c *Circuit) *mat.VecDense {
 	j := mat.NewVecDense(m, nil)
 	return j
 }
+
 func buildzMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
 	m := countVoltageSources(c)
 	n := len(nodeNumbers)
-	z := mat.NewVecDense(m+n-1, nil)
+	z := mat.NewVecDense(n+m-1, nil) // n+m-1 because we exclude the ground node
 
-	// First n rows of z are matrix i (currents)
+	// First n-1 rows of z are matrix i (currents)
 	i := buildiMatrix(c, nodeNumbers, nodeComponents)
 	for k := 0; k < n-1; k++ {
 		z.SetVec(k, i.AtVec(k))
@@ -318,30 +319,37 @@ func buildzMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[str
 
 func buildiMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
 	n := len(nodeNumbers)
-	i := mat.NewVecDense(n, nil)
-	// TODO: Implement i matrix (currents through voltage sources: none for now)
+	i := mat.NewVecDense(n-1, nil) // n-1 because we exclude the ground node
+
 	for nodeName, components := range nodeComponents {
-		if nodeName != "ground" {
-			comp := findComponentByID(c, globalNodeMapping[nodeName])
+		if nodeName == "ground" {
+			continue
+		}
+		nodeIndex := nodeNumbers[nodeName] - 1 // Adjust for 0-based indexing
+		currentSum := 0.0
+
+		for _, compID := range components {
+			comp := findComponentByID(c, compID)
 			if comp.Type == CurrentSource {
-				currentValue := i.AtVec(nodeNumbers[nodeName]-1)
-				i.SetVec(nodeNumbers[nodeName]-1, currentValue+comp.Value)
-			}
-			for _, compID := range components {
-				compIn := findComponentByID(c, compID)
-				if compIn.Type == CurrentSource {
-					currentValue := i.AtVec(nodeNumbers[nodeName]-1)
-					i.SetVec(nodeNumbers[nodeName]-1, currentValue-compIn.Value)
+				// Check the direction of the current source
+				if isCurrentSourcePointingToNode(c, comp.ID, nodeName) {
+					currentSum += comp.Value
+				} else {
+					currentSum -= comp.Value
 				}
 			}
 		}
+
+		i.SetVec(nodeIndex, currentSum)
 	}
+
 	return i
 }
 
 func buildeMatrix(c *Circuit) *mat.VecDense {
 	m := countVoltageSources(c)
 	e := mat.NewVecDense(m, nil)
+
 	voltIndex := 0
 	for _, comp := range c.Components {
 		if comp.Type == Battery {
@@ -349,7 +357,20 @@ func buildeMatrix(c *Circuit) *mat.VecDense {
 			voltIndex++
 		}
 	}
+
 	return e
+}
+
+func isCurrentSourcePointingToNode(c *Circuit, sourceID, nodeName string) bool {
+	for _, conn := range c.Connections {
+		if conn.From == sourceID && conn.To == nodeName {
+			return true
+		}
+		if conn.To == sourceID && conn.From == nodeName {
+			return false
+		}
+	}
+	return false // Default case, should not happen if circuit is well-formed
 }
 
 func getNodePair(compID string, connections []Connection, nodeMap map[string]int) (int, int) {

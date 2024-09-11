@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"gonum.org/v1/gonum/mat"
 	// "strconv"
+	// "strings"
 )
 
 var testCircuit = &Circuit{
@@ -205,19 +206,31 @@ func TestBuildCMatrix(t *testing.T) {
 }
 
 func TestBuildzMatrix(t *testing.T) {
+	expectedZ := map[string]*mat.VecDense{
+		"TestCircuit1": mat.NewVecDense(5, []float64{0, 0, 0, 32, 20}),
+		"TestCircuit2": mat.NewVecDense(5, []float64{0, 0, 0, 32, 20}),
+		"TestCircuit3": mat.NewVecDense(3, []float64{10, 0, 32}),
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nodeNumbers, nodeComponents := assignNodeNumbers(tc.circuit)
-			Z := buildzMatrix(tc.circuit, nodeNumbers, nodeComponents)
+			z := buildzMatrix(tc.circuit, nodeNumbers, nodeComponents)
 			
-			fmt.Printf("%s Z Matrix:\n", tc.name)
-			if Z == nil {
-				t.Fatal("Z matrix is nil")
+			fmt.Printf("%s z Matrix:\n", tc.name)
+			if z == nil {
+				t.Fatal("z matrix is nil")
 			}
 			
-			r, _ := Z.Dims()
+			r, _ := z.Dims()
 			fmt.Printf("Matrix dimensions: %d x 1\n", r)
-			fmt.Printf("%v\n", mat.Formatted(Z, mat.Prefix("    "), mat.Squeeze()))
+			fmt.Printf("%v\n", mat.Formatted(z, mat.Prefix("    "), mat.Squeeze()))
+
+			expected := expectedZ[tc.name]
+			if !mat.EqualApprox(z, expected, 1e-6) {
+				t.Errorf("z matrix for %s does not match expected.\nGot:\n%v\nExpected:\n%v",
+					tc.name, mat.Formatted(z), mat.Formatted(expected))
+			}
 		})
 	}
 }
