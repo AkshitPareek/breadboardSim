@@ -2,7 +2,6 @@ package circuit
 
 import (
 	"math"
-	// "reflect"
 	"testing"
 	"fmt"
 	"gonum.org/v1/gonum/mat"
@@ -231,6 +230,53 @@ func TestBuildzMatrix(t *testing.T) {
 				t.Errorf("z matrix for %s does not match expected.\nGot:\n%v\nExpected:\n%v",
 					tc.name, mat.Formatted(z), mat.Formatted(expected))
 			}
+		})
+	}
+}
+
+func TestBuildxMatrix(t *testing.T) {
+	expectedX := map[string]*mat.VecDense{
+		"TestCircuit1": mat.NewVecDense(5, []float64{0, 0, 0, 0, 0}),
+		"TestCircuit2": mat.NewVecDense(5, []float64{0, 0, 0, 0, 0}),
+		"TestCircuit3": mat.NewVecDense(3, []float64{0, 0, 0}),
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			nodeNumbers, _ := assignNodeNumbers(tc.circuit)
+			x := buildxMatrix(tc.circuit, nodeNumbers)
+			
+			fmt.Printf("%s x Matrix:\n", tc.name)
+			if x == nil {
+				t.Fatal("x matrix is nil")
+			}
+			
+			r, _ := x.Dims()
+			fmt.Printf("Matrix dimensions: %d x 1\n", r)
+			fmt.Printf("%v\n", mat.Formatted(x, mat.Prefix("    "), mat.Squeeze()))
+
+			expected := expectedX[tc.name]
+			if !mat.EqualApprox(x, expected, 1e-6) {
+				t.Errorf("x matrix for %s does not match expected.\nGot:\n%v\nExpected:\n%v",
+					tc.name, mat.Formatted(x), mat.Formatted(expected))
+			}
+		})
+	}
+}
+
+func TestSolveCircuit(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			results, err := SolveCircuit(tc.circuit)
+			if err != nil {
+				t.Fatalf("Error solving circuit: %v", err)
+			}
+
+			fmt.Printf("%s Solution:\n", tc.name)
+			for key, value := range results {
+				fmt.Printf("%s: %.6f\n", key, value)
+			}
+			fmt.Println() // Add a blank line between test cases for readability
 		})
 	}
 }

@@ -2,7 +2,7 @@ package circuit
 
 import (
 	"gonum.org/v1/gonum/mat"
-	// "strconv"
+	"fmt"
 	"strings"
 )
 
@@ -24,14 +24,48 @@ func SolveCircuit(c *Circuit) (map[string]float64, error) {
 	// 2. Build MNA matrices
 	A, x, z := buildMNAMatrices(c, nodeMap, nodeComponents)
 
+	// Debug: Print matrix dimensions
+	aRows, aCols := A.Dims()
+	zRows, zCols := z.Dims()
+	fmt.Printf("A dimensions: %dx%d\n", aRows, aCols)
+	fmt.Printf("z dimensions: %dx%d\n", zRows, zCols)
+
 	// 3. Solve the system
-	err := x.SolveVec(A, z)
+	var AInv mat.Dense
+	err := AInv.Inverse(A)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to invert matrix A: %v", err)
 	}
 
+	// Debug: Print inverse matrix dimensions
+	invRows, invCols := AInv.Dims()
+	fmt.Printf("A^-1 dimensions: %dx%d\n", invRows, invCols)
+
+	// Multiply A^(-1) with z
+	var result mat.Dense
+	result.Mul(&AInv, z)
+
+	// Copy the result back to x
+	x.CopyVec(result.ColView(0))
+
 	// 4. Extract results
-	return nil, nil
+	results := make(map[string]float64)
+	for node, index := range nodeMap {
+		if node != "ground" {
+			results[node] = x.AtVec(index - 1)
+		}
+	}
+
+	// Add currents through voltage sources
+	voltageSourceIndex := len(nodeMap) - 1
+	for _, comp := range c.Components {
+		if comp.Type == Battery {
+			results[comp.ID+"_current"] = x.AtVec(voltageSourceIndex)
+			voltageSourceIndex++
+		}
+	}
+
+	return results, nil
 }
 
 func assignNodeNumbers(c *Circuit) (map[string]int, map[string][]string) {
@@ -267,21 +301,26 @@ func buildDMatrix(c *Circuit) *mat.Dense {
 }
 
 func buildxMatrix(c *Circuit, nodeNumbers map[string]int) *mat.VecDense {
+	n := len(nodeNumbers) - 1 // Subtract 1 to exclude the ground node
 	m := countVoltageSources(c)
-	n := len(nodeNumbers)
-	x := mat.NewVecDense(m+n, nil)
+	x := mat.NewVecDense(n+m, nil)
 
 	// First n rows of x are matrix v (node voltages)
-	v := buildvMatrix(c, nodeNumbers)
-	for k := 0; k < n-1; k++ {
-		x.SetVec(k, v.AtVec(k))
+	for nodeName, nodeNumber := range nodeNumbers {
+		if nodeName != "ground" {
+			x.SetVec(nodeNumber-1, 0) // Initialize node voltages to 0
+		}
 	}
 
-	// Next m rows of x are matrix e (voltage sources)
-	e := buildeMatrix(c)
-	for k := 0; k < m; k++ {
-		x.SetVec(n-1+k, e.AtVec(k))
+	// Next m rows of x are matrix j (currents through voltage sources)
+	voltageSourceIndex := n
+	for _, comp := range c.Components {
+		if comp.Type == Battery {
+			x.SetVec(voltageSourceIndex, 0) // Initialize voltage source currents to 0
+			voltageSourceIndex++
+		}
 	}
+
 	return x
 }
 
@@ -299,27 +338,27 @@ func buildjMatrix(c *Circuit) *mat.VecDense {
 
 func buildzMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
 	m := countVoltageSources(c)
-	n := len(nodeNumbers)
-	z := mat.NewVecDense(n+m-1, nil) // n+m-1 because we exclude the ground node
+	n := len(nodeNumbers) - 1 // Subtract 1 to exclude ground node
+	z := mat.NewVecDense(n+m, nil)
 
-	// First n-1 rows of z are matrix i (currents)
+	// First n rows of z are matrix i (currents)
 	i := buildiMatrix(c, nodeNumbers, nodeComponents)
-	for k := 0; k < n-1; k++ {
+	for k := 0; k < n; k++ {
 		z.SetVec(k, i.AtVec(k))
 	}
 
 	// Next m rows of z are matrix e (voltage sources)
 	e := buildeMatrix(c)
 	for k := 0; k < m; k++ {
-		z.SetVec(n-1+k, e.AtVec(k))
+		z.SetVec(n+k, e.AtVec(k))
 	}
 
 	return z
 }
 
 func buildiMatrix(c *Circuit, nodeNumbers map[string]int, nodeComponents map[string][]string) *mat.VecDense {
-	n := len(nodeNumbers)
-	i := mat.NewVecDense(n-1, nil) // n-1 because we exclude the ground node
+	n := len(nodeNumbers) - 1 // Subtract 1 to exclude ground node
+	i := mat.NewVecDense(n, nil)
 
 	for nodeName, components := range nodeComponents {
 		if nodeName == "ground" {
